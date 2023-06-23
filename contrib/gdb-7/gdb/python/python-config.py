@@ -10,8 +10,12 @@ valid_opts = ['prefix', 'exec-prefix', 'includes', 'libs', 'cflags',
               'ldflags', 'help']
 
 def exit_with_usage(code=1):
-    sys.stderr.write ("Usage: %s [%s]\n" % (sys.argv[0],
-                                          '|'.join('--'+opt for opt in valid_opts)))
+    sys.stderr.write(
+        (
+            "Usage: %s [%s]\n"
+            % (sys.argv[0], '|'.join(f'--{opt}' for opt in valid_opts))
+        )
+    )
     sys.exit(code)
 
 try:
@@ -51,8 +55,10 @@ for opt in opt_flags:
         print (to_unix_path(sysconfig.EXEC_PREFIX))
 
     elif opt in ('--includes', '--cflags'):
-        flags = ['-I' + sysconfig.get_python_inc(),
-                 '-I' + sysconfig.get_python_inc(plat_specific=True)]
+        flags = [
+            f'-I{sysconfig.get_python_inc()}',
+            f'-I{sysconfig.get_python_inc(plat_specific=True)}',
+        ]
         if opt == '--cflags':
             flags.extend(getvar('CFLAGS').split())
         print (to_unix_path(' '.join(flags)))
@@ -63,7 +69,7 @@ for opt in opt_flags:
             libs.extend(getvar('LIBS').split())
         if getvar('SYSLIBS') is not None:
             libs.extend(getvar('SYSLIBS').split())
-        libs.append('-lpython'+pyver + abiflags)
+        libs.append(f'-lpython{pyver}{abiflags}')
         # add the prefix/lib/pythonX.Y/config dir, but only if there is no
         # shared library in prefix/lib/.
         if opt == '--ldflags':
@@ -71,7 +77,7 @@ for opt in opt_flags:
                 if getvar('LIBPL') is not None:
                     libs.insert(0, '-L' + getvar('LIBPL'))
                 elif os.name == 'nt':
-                    libs.insert(0, '-L' + sysconfig.PREFIX + '/libs')
+                    libs.insert(0, f'-L{sysconfig.PREFIX}/libs')
             if getvar('LINKFORSHARED') is not None:
                 libs.extend(getvar('LINKFORSHARED').split())
         print (to_unix_path(' '.join(libs)))

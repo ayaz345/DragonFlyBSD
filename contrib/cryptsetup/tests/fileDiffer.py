@@ -19,7 +19,7 @@ def parseArgs(args):
 	aFileName = args[1]
 	bFileName = args[2]
 	changelist = []
-	args[0:3] = []
+	args[:3] = []
 	for i in args:
 		mychanges = changes();
 		if i.startswith('A'):
@@ -30,7 +30,7 @@ def parseArgs(args):
 		if i.startswith('S'):
 			mychanges.mode = 'REQUIRED'
 			mychanges.strictness = 'SEMANTIC'
-		
+
 		dashIndex = i.find('-')
 		if dashIndex == -1:			
 			mychanges.starts = int(i[1:])
@@ -43,7 +43,7 @@ def parseArgs(args):
 	mychanges = changes();
 	mychanges.starts = 0
 #	mychanges.ends will be fixed later
-	mychanges.mode = 'FORBIDDEN'	
+	mychanges.mode = 'FORBIDDEN'
 	changelist.append(mychanges)
 	return [aFileName, bFileName, changelist]
 
@@ -52,11 +52,7 @@ def mode(i):
 		if i >= c.starts and i<=c.ends:
 			return c
 def cleanchanges(i):
-	newchangelist=[]	
-	for c in changelist:
-		if i <= c.starts or i <= c.ends:
-			newchangelist.append(c)
-	return newchangelist
+	return [c for c in changelist if i <= c.starts or i <= c.ends]
 
 [aFileName, bFileName, changelist] = parseArgs(sys.argv)
 

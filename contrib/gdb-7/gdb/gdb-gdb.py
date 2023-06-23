@@ -111,14 +111,18 @@ class StructTypePrettyPrinter:
     def __init__(self, val):
         self.val = val
     def to_string(self):
-        fields = []
-        fields.append("pointer_type = %s" % self.val['pointer_type'])
-        fields.append("reference_type = %s" % self.val['reference_type'])
-        fields.append("chain = %s" % self.val['reference_type'])
-        fields.append("instance_flags = %s"
-                      % TypeFlagsPrinter(self.val['instance_flags']))
-        fields.append("length = %d" % self.val['length'])
-        fields.append("main_type = %s" % self.val['main_type'])
+        fields = [
+            f"pointer_type = {self.val['pointer_type']}",
+            f"reference_type = {self.val['reference_type']}",
+            f"chain = {self.val['reference_type']}",
+            f"instance_flags = {TypeFlagsPrinter(self.val['instance_flags'])}",
+        ]
+        fields.extend(
+            (
+                "length = %d" % self.val['length'],
+                f"main_type = {self.val['main_type']}",
+            )
+        )
         return "\n{" + ",\n ".join(fields) + "}"
 
 class StructMainTypePrettyPrinter:
@@ -143,9 +147,9 @@ class StructMainTypePrettyPrinter:
         """Return an image of component "owner".
         """
         if self.val['flag_objfile_owned'] != 0:
-            return "%s (objfile)" % self.val['owner']['objfile']
+            return f"{self.val['owner']['objfile']} (objfile)"
         else:
-            return "%s (gdbarch)" % self.val['owner']['gdbarch']
+            return f"{self.val['owner']['gdbarch']} (gdbarch)"
     def struct_field_location_img(self, field_val):
         """Return an image of the loc component inside the given field
         gdb.Value.
@@ -154,14 +158,14 @@ class StructMainTypePrettyPrinter:
         loc_kind = str(field_val['loc_kind'])
         if loc_kind == "FIELD_LOC_KIND_BITPOS":
             return 'bitpos = %d' % loc_val['bitpos']
+        elif loc_kind == "FIELD_LOC_KIND_DWARF_BLOCK":
+            return f"dwarf_block = {loc_val['dwarf_block']}"
         elif loc_kind == "FIELD_LOC_KIND_ENUMVAL":
             return 'enumval = %d' % loc_val['enumval']
         elif loc_kind == "FIELD_LOC_KIND_PHYSADDR":
             return 'physaddr = 0x%x' % loc_val['physaddr']
         elif loc_kind == "FIELD_LOC_KIND_PHYSNAME":
-            return 'physname = %s' % loc_val['physname']
-        elif loc_kind == "FIELD_LOC_KIND_DWARF_BLOCK":
-            return 'dwarf_block = %s' % loc_val['dwarf_block']
+            return f"physname = {loc_val['physname']}"
         else:
             return 'loc = ??? (unsupported loc_kind value)'
     def struct_field_img(self, fieldno):
@@ -171,12 +175,13 @@ class StructMainTypePrettyPrinter:
         label = "flds_bnds.fields[%d]:" % fieldno
         if f['artificial']:
             label += " (artificial)"
-        fields = []
-        fields.append("name = %s" % f['name'])
-        fields.append("type = %s" % f['type'])
-        fields.append("loc_kind = %s" % f['loc_kind'])
-        fields.append("bitsize = %d" % f['bitsize'])
-        fields.append(self.struct_field_location_img(f))
+        fields = [
+            f"name = {f['name']}",
+            f"type = {f['type']}",
+            f"loc_kind = {f['loc_kind']}",
+            "bitsize = %d" % f['bitsize'],
+            self.struct_field_location_img(f),
+        ]
         return label + "\n" + "  {" + ",\n   ".join(fields) + "}"
     def bounds_img(self):
         """Return an image of the main_type bounds.
@@ -196,38 +201,46 @@ class StructMainTypePrettyPrinter:
         """
         type_specific_kind = str(self.val['type_specific_field'])
         type_specific = self.val['type_specific']
-        if type_specific_kind == "TYPE_SPECIFIC_NONE":
-            img = 'type_specific_field = %s' % type_specific_kind
-        elif type_specific_kind == "TYPE_SPECIFIC_CPLUS_STUFF":
-            img = "cplus_stuff = %s" % type_specific['cplus_stuff']
-        elif type_specific_kind == "TYPE_SPECIFIC_GNAT_STUFF":
-            img = ("gnat_stuff = {descriptive_type = %s}"
-                   % type_specific['gnat_stuff']['descriptive_type'])
+        if type_specific_kind == "TYPE_SPECIFIC_CPLUS_STUFF":
+            return f"cplus_stuff = {type_specific['cplus_stuff']}"
         elif type_specific_kind == "TYPE_SPECIFIC_FLOATFORMAT":
-            img = "floatformat[0..1] = %s" % type_specific['floatformat']
+            return f"floatformat[0..1] = {type_specific['floatformat']}"
         elif type_specific_kind == "TYPE_SPECIFIC_FUNC":
-            img = ("calling_convention = %d"
-                   % type_specific['func_stuff']['calling_convention'])
-            # tail_call_list is not printed.
+            return (
+                "calling_convention = %d"
+                % type_specific['func_stuff']['calling_convention']
+            )
+        elif type_specific_kind == "TYPE_SPECIFIC_GNAT_STUFF":
+            return (
+                "gnat_stuff = {descriptive_type = %s}"
+                % type_specific['gnat_stuff']['descriptive_type']
+            )
+        elif type_specific_kind == "TYPE_SPECIFIC_NONE":
+            return f'type_specific_field = {type_specific_kind}'
         else:
-            img = ("type_specific = ??? (unknown type_secific_kind: %s)"
-                   % type_specific_kind)
-        return img
+            return f"type_specific = ??? (unknown type_secific_kind: {type_specific_kind})"
 
     def to_string(self):
         """Return a pretty-printed image of our main_type.
         """
-        fields = []
-        fields.append("name = %s" % self.val['name'])
-        fields.append("tag_name = %s" % self.val['tag_name'])
-        fields.append("code = %s" % self.val['code'])
-        fields.append("flags = [%s]" % self.flags_to_string())
-        fields.append("owner = %s" % self.owner_to_string())
-        fields.append("target_type = %s" % self.val['target_type'])
-        fields.append("vptr_basetype = %s" % self.val['vptr_basetype'])
+        fields = [
+            f"name = {self.val['name']}",
+            f"tag_name = {self.val['tag_name']}",
+            f"code = {self.val['code']}",
+            f"flags = [{self.flags_to_string()}]",
+        ]
+        fields.extend(
+            (
+                f"owner = {self.owner_to_string()}",
+                f"target_type = {self.val['target_type']}",
+                f"vptr_basetype = {self.val['vptr_basetype']}",
+            )
+        )
         if self.val['nfields'] > 0:
-            for fieldno in range(self.val['nfields']):
-                fields.append(self.struct_field_img(fieldno))
+            fields.extend(
+                self.struct_field_img(fieldno)
+                for fieldno in range(self.val['nfields'])
+            )
         if self.val['code'] == gdb.TYPE_CODE_RANGE:
             fields.append(self.bounds_img())
         fields.append(self.type_specific_img())

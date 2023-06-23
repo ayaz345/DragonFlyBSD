@@ -45,13 +45,12 @@ def directory_save(filename, patch, suffix = None, root = None, forceful = False
 		suffix = ".patch"
 	if root is None:
 		root = ""
-	output_name  = os.path.join(root, "%s%s" % (filename.replace('/',','), suffix))
-	
+	output_name = os.path.join(root, f"{filename.replace('/', ',')}{suffix}")
+
 	if os.path.exists(output_name) and not forceful:
 		raise IOError('file exists')
-	f = open(output_name,"w")
-	f.write(patch)
-	f.close()
+	with open(output_name,"w") as f:
+		f.write(patch)
 
 def splitpatch(source, output = directory_save, quiet = False):
 	"""
@@ -74,7 +73,7 @@ def splitpatch(source, output = directory_save, quiet = False):
 				filename = line.split()[1]
 
 			if filename and not quiet:
-				print("Found patch for %s" % filename)
+				print(f"Found patch for {filename}")
 
 			buf.append(line)
 		elif diff_line.get(line[0]):
@@ -101,10 +100,7 @@ def main():
 	(options, args) = parser.parse_args()
 	if len(args) > 1:
 		parser.error("incorrect number of arguments")
-	if args:
-		source = open(args[0])
-	else:
-		source = sys.stdin
+	source = open(args[0]) if args else sys.stdin
 	splitpatch(source, lambda filename, patch: directory_save(filename, patch, forceful = options.force,
 				suffix = options.suffix, root = options.directory), quiet = options.quiet)
 

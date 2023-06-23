@@ -47,7 +47,7 @@ def get_update_list():
     for gdb_dir in ('gdb', 'sim', 'include/gdb'):
         for root, dirs, files in os.walk(gdb_dir, topdown=True):
             for dirname in dirs:
-                reldirname = "%s/%s" % (root, dirname)
+                reldirname = f"{root}/{dirname}"
                 if (dirname in EXCLUDE_ALL_LIST
                     or reldirname in EXCLUDE_LIST
                     or reldirname in NOT_FSF_LIST
@@ -55,14 +55,13 @@ def get_update_list():
                     # Prune this directory from our search list.
                     dirs.remove(dirname)
             for filename in files:
-                relpath = "%s/%s" % (root, filename)
-                if (filename in EXCLUDE_ALL_LIST
-                    or relpath in EXCLUDE_LIST
-                    or relpath in NOT_FSF_LIST
-                    or relpath in BY_HAND):
-                    # Ignore this file.
-                    pass
-                else:
+                relpath = f"{root}/{filename}"
+                if (
+                    filename not in EXCLUDE_ALL_LIST
+                    and relpath not in EXCLUDE_LIST
+                    and relpath not in NOT_FSF_LIST
+                    and relpath not in BY_HAND
+                ):
                     result.append(relpath)
     return result
 
@@ -129,11 +128,9 @@ def may_have_copyright_notice(filename):
 
     fd = open(filename)
 
-    lineno = 1
-    for line in fd:
+    for lineno, line in enumerate(fd, start=2):
         if 'Copyright' in line:
             return True
-        lineno += 1
         if lineno > 50:
             return False
     return False

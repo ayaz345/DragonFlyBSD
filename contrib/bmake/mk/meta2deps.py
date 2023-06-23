@@ -76,7 +76,7 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     Return an absolute path, resolving via cwd or last_dir if needed.
     """
     if path.endswith('/.'):
-        path = path[0:-2]
+        path = path[:-2]
     if len(path) > 0 and path[0] == '/':
         if os.path.exists(path):
             return path
@@ -113,10 +113,7 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
 
 def cleanpath(path):
     """cleanup path without using realpath(3)"""
-    if path.startswith('/'):
-        r = '/'
-    else:
-        r = ''
+    r = '/' if path.startswith('/') else ''
     p = []
     w = path.split('/')
     for d in w:
@@ -137,8 +134,7 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     Return an absolute path, resolving via cwd or last_dir if needed.
     this gets called a lot, so we try to avoid calling realpath.
     """
-    rpath = resolve(path, cwd, last_dir, debug, debug_out)
-    if rpath:
+    if rpath := resolve(path, cwd, last_dir, debug, debug_out):
         path = rpath
     elif len(path) > 0 and path[0] == '/':
         return None
@@ -163,21 +159,18 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
     return nl
 
 def add_trims(x):
-    return ['/' + x + '/',
-            '/' + x,
-            x + '/',
-            x]
+    return [f'/{x}/', f'/{x}', f'{x}/', x]
 
 def target_spec_exts(target_spec):
     """return a list of dirdep extensions that could match target_spec"""
 
     if target_spec.find(',') < 0:
-        return ['.'+target_spec]
+        return [f'.{target_spec}']
     w = target_spec.split(',')
     n = len(w)
     e = []
     while n > 0:
-        e.append('.'+','.join(w[0:n]))
+        e.append('.' + ','.join(w[:n]))
         n -= 1
     return e
 
@@ -257,12 +250,12 @@ class MetaFile:
             for srctop in conf.get('SRCTOPS', []):
                 if srctop[-1] != '/':
                     srctop += '/'
-                if not srctop in self.srctops:
+                if srctop not in self.srctops:
                     self.srctops.append(srctop)
                 _srctop = os.path.realpath(srctop)
                 if _srctop[-1] != '/':
                     _srctop += '/'
-                if not _srctop in self.srctops:
+                if _srctop not in self.srctops:
                     self.srctops.append(_srctop)
 
             trim_list = add_trims(self.machine)
@@ -275,16 +268,16 @@ class MetaFile:
                 for e in trim_list:
                     if objroot.endswith(e):
                         # this is not what we want - fix it
-                        objroot = objroot[0:-len(e)]
+                        objroot = objroot[:-len(e)]
 
                 if objroot[-1] != '/':
                     objroot += '/'
-                if not objroot in self.objroots:
+                if objroot not in self.objroots:
                     self.objroots.append(objroot)
                     _objroot = os.path.realpath(objroot)
                     if objroot[-1] == '/':
                         _objroot += '/'
-                    if not _objroot in self.objroots:
+                    if _objroot not in self.objroots:
                         self.objroots.append(_objroot)
 
             # we want the longest match
@@ -306,8 +299,7 @@ class MetaFile:
             if self.debug:
                 print("need reldir:", end=' ', file=self.debug_out)
             if self.curdir:
-                srctop = self.find_top(self.curdir, self.srctops)
-                if srctop:
+                if srctop := self.find_top(self.curdir, self.srctops):
                     self.reldir = self.curdir.replace(srctop,'')
                     if self.debug:
                         print(self.reldir, file=self.debug_out)
@@ -341,10 +333,10 @@ class MetaFile:
         if not self.reldir:
             return None
         for f in sort_unique(self.file_deps):
-            print('DPDEPS_%s += %s' % (f, self.reldir), file=out)
+            print(f'DPDEPS_{f} += {self.reldir}', file=out)
         # these entries provide for reverse DIRDEPS lookup
         for f in self.obj_deps:
-            print('DEPDIRS_%s += %s' % (f, self.reldir), file=out)
+            print(f'DEPDIRS_{f} += {self.reldir}', file=out)
 
     def seenit(self, dir):
         """rememer that we have seen dir."""
@@ -355,7 +347,7 @@ class MetaFile:
         if data not in list:
             list.append(data)
             if self.debug:
-                print("%s: %sAdd: %s" % (self.name, clue, data), file=self.debug_out)
+                print(f"{self.name}: {clue}Add: {data}", file=self.debug_out)
 
     def find_top(self, path, list):
         """the logical tree may be split across multiple trees"""
@@ -369,14 +361,14 @@ class MetaFile:
     def find_obj(self, objroot, dir, path, input):
         """return path within objroot, taking care of .dirdep files"""
         ddep = None
-        for ddepf in [path + '.dirdep', dir + '/.dirdep']:
+        for ddepf in [f'{path}.dirdep', f'{dir}/.dirdep']:
             if not ddep and os.path.exists(ddepf):
                 ddep = open(ddepf, 'r').readline().strip('# \n')
                 if self.debug > 1:
                     print("found %s: %s\n" % (ddepf, ddep), file=self.debug_out)
                 for e in self.exts:
                     if ddep.endswith(e):
-                        ddep = ddep[0:-len(e)]
+                        ddep = ddep[:-len(e)]
                         break
 
         if not ddep:
@@ -384,19 +376,15 @@ class MetaFile:
             self.seenit(input)
             self.seenit(dir)
             if self.machine == 'none':
-                if dir.startswith(objroot):
-                    return dir.replace(objroot,'')
-                return None
-            m = self.dirdep_re.match(dir.replace(objroot,''))
-            if m:
+                return dir.replace(objroot,'') if dir.startswith(objroot) else None
+            if m := self.dirdep_re.match(dir.replace(objroot, '')):
                 ddep = m.group(2)
                 dmachine = m.group(1)
                 if dmachine != self.machine:
-                    if not (self.machine == 'host' and
-                            dmachine == self.host_target):
+                    if self.machine != 'host' or dmachine != self.host_target:
                         if self.debug > 2:
-                            print("adding .%s to %s" % (dmachine, ddep), file=self.debug_out)
-                        ddep += '.' + dmachine
+                            print(f"adding .{dmachine} to {ddep}", file=self.debug_out)
+                        ddep += f'.{dmachine}'
 
         return ddep
 
@@ -406,7 +394,7 @@ class MetaFile:
             self.parse(name, file)
         except:
             # give a useful clue
-            print('{}:{}: '.format(self.name, self.line), end=' ', file=sys.stderr)
+            print(f'{self.name}:{self.line}: ', end=' ', file=sys.stderr)
             raise
 
     def parse(self, name=None, file=None):
@@ -457,7 +445,7 @@ class MetaFile:
         for line in f:
             self.line += 1
             # ignore anything we don't care about
-            if not line[0] in interesting:
+            if line[0] not in interesting:
                 continue
             if self.debug > 2:
                 print("input:", line, end=' ', file=self.debug_out)
@@ -477,7 +465,7 @@ class MetaFile:
                     self.cwd = cwd = self.last_dir = w[1]
                     self.seenit(cwd)    # ignore this
                     if self.debug:
-                        print("%s: CWD=%s" % (self.name, cwd), file=self.debug_out)
+                        print(f"{self.name}: CWD={cwd}", file=self.debug_out)
                 continue
 
             pid = int(w[1])
@@ -502,7 +490,7 @@ class MetaFile:
                     if self.debug > 1:
                         print("missing cwd=", cwd, file=self.debug_out)
                 if cwd.endswith('/.'):
-                    cwd = cwd[0:-2]
+                    cwd = cwd[:-2]
                 self.last_dir = pid_last_dir[pid] = cwd
                 pid_cwd[pid] = cwd
                 if self.debug > 1:
@@ -549,7 +537,7 @@ class MetaFile:
                 # we do not care why the above fails,
                 # we do not want to miss the ERROR below.
                 pass
-            print("ERROR: missing eXit for {} pid {}".format(path, pid))
+            print(f"ERROR: missing eXit for {path} pid {pid}")
         for pid in setid_pids:
             del self.pids[pid]
         assert(len(self.pids) == 0)
@@ -562,8 +550,7 @@ class MetaFile:
             if not dir:
                 continue
             path = '/'.join([dir,base])
-            srctop = self.find_top(path, self.srctops)
-            if srctop:
+            if srctop := self.find_top(path, self.srctops):
                 if self.dpdeps:
                     self.add(self.file_deps, path.replace(srctop,''), 'file')
                 self.add(self.src_deps, dir.replace(srctop,''), 'src')
@@ -608,7 +595,7 @@ class MetaFile:
         # now put path back together
         path = '/'.join([dir,base])
         if self.debug > 1:
-            print("raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path), file=self.debug_out)
+            print(f"raw={w[2]} rdir={rdir} dir={dir} path={path}", file=self.debug_out)
         if op in 'RWS':
             if path in [self.last_dir, cwd, self.cwd, self.curdir]:
                 if self.debug > 1:
@@ -623,7 +610,7 @@ class MetaFile:
 
         if op in 'ER':
             # finally, we get down to it
-            if dir == self.cwd or dir == self.curdir:
+            if dir in [self.cwd, self.curdir]:
                 return
             if self.is_src(base, dir, rdir):
                 self.seenit(w[2])
@@ -638,8 +625,7 @@ class MetaFile:
                 if objroot:
                     break
             if objroot:
-                ddep = self.find_obj(objroot, dir, path, w[2])
-                if ddep:
+                if ddep := self.find_obj(objroot, dir, path, w[2]):
                     self.add(self.obj_deps, ddep, 'obj')
                     if self.dpdeps and objroot.endswith('/stage/'):
                         sp = '/'.join(path.replace(objroot,'').split('/')[1:])
@@ -697,17 +683,13 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
         }
 
     try:
-        machine = os.environ['MACHINE']
-        if machine:
+        if machine := os.environ['MACHINE']:
             conf['MACHINE'] = machine
-        machine_arch = os.environ['MACHINE_ARCH']
-        if machine_arch:
+        if machine_arch := os.environ['MACHINE_ARCH']:
             conf['MACHINE_ARCH'] = machine_arch
-        srctop = os.environ['SB_SRC']
-        if srctop:
+        if srctop := os.environ['SB_SRC']:
             conf['SRCTOPS'].append(srctop)
-        objroot = os.environ['SB_OBJROOT']
-        if objroot:
+        if objroot := os.environ['SB_OBJROOT']:
             conf['OBJROOTS'].append(objroot)
     except:
         pass
@@ -715,7 +697,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     debug = 0
     output = True
 
-    opts, args = getopt.getopt(argv[1:], 'a:dS:C:O:R:m:D:H:qT:X:' + xopts)
+    opts, args = getopt.getopt(argv[1:], f'a:dS:C:O:R:m:D:H:qT:X:{xopts}')
     for o, a in opts:
         if o == '-a':
             conf['MACHINE_ARCH'] = a
@@ -776,7 +758,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
         print("config:", file=debug_out)
         print("psyco=", have_psyco, file=debug_out)
         for k,v in list(conf.items()):
-            print("%s=%s" % (k,v), file=debug_out)
+            print(f"{k}={v}", file=debug_out)
 
     m = None
     for a in args:
@@ -797,8 +779,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
 
         print(m.src_dirdeps('\nsrc:'))
 
-        dpdeps = conf.get('DPDEPS')
-        if dpdeps:
+        if dpdeps := conf.get('DPDEPS'):
             m.file_depends(open(dpdeps, 'w'))
 
     return m
